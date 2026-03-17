@@ -16,7 +16,7 @@ for round in range(1, 21):
     # Extract required lap columns
     columnsToKeep = [
         'Driver', 'DriverNumber', 'Position',
-        'Time', 'LapTime', 'LapNumber', 'Compound', 
+        'Time', 'LapTime', 'LapNumber', 'LapStartTime', 'Compound', 
         'TyreLife', 'Stint', 'TrackStatus', 'IsAccurate'
     ]
     modelData = lapsData[columnsToKeep].copy()
@@ -28,6 +28,22 @@ for round in range(1, 21):
     modelData = modelData[modelData['TrackStatus'] == '1']
     modelData['LapTimeSeconds'] = modelData['LapTime'].dt.total_seconds()
     modelData['PitStopTarget'] = (modelData['Stint'] > modelData['Stint'].shift(1)).astype(int)
+
+    # Calculate gap to car ahead for dirty air impact
+    # Sort by LapNumber and LapStartTime to determine the actual on-track order
+    modelData = modelData.sort_values(by=['LapNumber', 'LapStartTime'])
+    
+    # Get the time the car crossed the line
+    modelData['CarAheadLapStartTime'] = modelData.groupby('LapNumber')['LapStartTime'].shift(1)
+    
+    # Calculate gap in seconds
+    modelData['GapToCarAhead'] = (modelData['LapStartTime'] - modelData['CarAheadLapStartTime']).dt.total_seconds()
+    
+    # Fill Large number for Clean Air
+    modelData['GapToCarAhead'] = modelData['GapToCarAhead'].fillna(999.0)
+    
+    # Mark as in dirty air if gap is less than 2 seconds
+    modelData['InDirtyAir'] = (modelData['GapToCarAhead'] < 2.0).astype(int)
 
     # Convert tyre compounds to numeric values
     compoundMapping = {'SOFT': 1, 'MEDIUM': 2, 'HARD': 3, 'INTERMEDIATE': 4, 'WET': 5}
