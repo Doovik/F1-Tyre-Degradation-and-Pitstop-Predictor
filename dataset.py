@@ -7,7 +7,7 @@ os.makedirs("f1_cache", exist_ok=True)
 fastf1.Cache.enable_cache("f1_cache")
 allModelData = []
 
-for round in range(1, 21):
+for round in range(1, 25):
     # Load session and lap data
     raceSession = fastf1.get_session(2025, round, 'R')
     raceSession.load()
@@ -63,7 +63,12 @@ for round in range(1, 21):
 
 # Combine all races into a final dataset and encode variants
 finalSeasonData = pd.concat(allModelData, ignore_index=True)
-finalSeasonData = pd.get_dummies(finalSeasonData, columns=['Compound'], prefix='Tyre')
+
+# Ensure all tyre columns exist even if a specific tyre wasn't used in the loaded races
+expected_tyre_cols = ['Tyre_SOFT', 'Tyre_MEDIUM', 'Tyre_HARD', 'Tyre_INTERMEDIATE', 'Tyre_WET']
+for tyre_col in expected_tyre_cols:
+    if tyre_col not in finalSeasonData.columns:
+        finalSeasonData[tyre_col] = False
 
 # Save to file
 finalSeasonData.to_parquet('f12025Data.parquet')
